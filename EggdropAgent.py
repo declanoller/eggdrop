@@ -10,10 +10,10 @@ class EggdropAgent:
         #Not great, but right now s in the actual index in pi, Q, E, etc,
         #whereas a is the FLOOR NUMBER, so index 0 corresponds to a=1, and
         #I pass the actual floor number to the action function...
-        np.set_printoptions(precision=2)
-        self.lambda_lookahead = 0.1
+        np.set_printoptions(precision=2,linewidth=150)
+        self.lambda_lookahead = 0.9
         self.gamma = 0.9
-        self.alpha = .9
+        self.alpha = .2 #0.3, 0.1 seems promising
         self.eps = 0.5
         self.env = egg_env
         self.N_floors = self.env.N_floors
@@ -29,9 +29,12 @@ class EggdropAgent:
         self.E = np.zeros((2+2*self.N_floors,self.N_floors))
 
 
-    def getStartingState(self):
-        #return(1 + 2*self.N_floors)
+    def getRandom2eStartingState(self):
         return(randint(2 + self.N_floors,1 + 2*self.N_floors))
+
+
+    def getTopFloorStartingState(self):
+        return(1 + 2*self.N_floors)
 
 
     def getFloorsAndEggsRemainingFromState(self):
@@ -66,6 +69,13 @@ class EggdropAgent:
         else:
             return(randint(1,len(actions)))
 
+
+    def greedyAction(self,state):
+        actions = self.Q[state,:]
+        best_index = np.argmax(actions)
+        return(best_index+1)
+
+
     def updateQ(self):
         #This does a backwards view update of Q.
         #self.Q += self.alpha*np.multiply(self.TDerror(),self.E)
@@ -82,9 +92,7 @@ class EggdropAgent:
     def decayE(self):
         self.E = self.gamma*self.lambda_lookahead*self.E
 
-
-
-    def learnEpisode(self):
+    def learnEpisode(self,starting_state=None):
 
         self.R_tot = 0
 
@@ -93,12 +101,8 @@ class EggdropAgent:
         self.state_history = []
         self.action_history = []
 
-
-
-
         #Reset the eligibility trace matrix
         self.resetE()
-
 
         '''print('start Q:')
         print(self.Q)
@@ -106,8 +110,13 @@ class EggdropAgent:
         print('start E:')
         print(self.E)'''
 
-        #Get the starting state (N floors, 2e) and put it in the history array.
-        self.s = self.getStartingState()
+        if starting_state is None:
+            #Get the starting state (N floors, 2e) and put it in the history array.
+            self.s = self.getStartingState()
+        else:
+            self.s = starting_state
+
+
 
         #Generate the episode
         self.env.generateEpisode(self.getFloorsAndEggsRemainingFromState()[1])
@@ -146,7 +155,8 @@ class EggdropAgent:
             print('state hist', self.state_history)'''
 
             #print('dropping from randomly chosen floor',self.a)
-            self.a_next = self.getEpsGreedyAction(self.s_next)
+            #self.a_next = self.getEpsGreedyAction(self.s_next)
+            self.a_next = self.greedyAction(self.s_next)
             #self.a_next = self.getRandomAction()
 
             #print('got next e-greedy action',self.a_next)
@@ -178,25 +188,35 @@ class EggdropAgent:
 
 
 
-    def runManyEpisodes(self,N_eps):
+    def runManyEpisodes(self,N_eps,starting_state_list=None):
 
         Rs = []
         results = []
         eps = []
         eps.append(self.eps)
 
-        for i in range(1,N_eps):
+        if starting_state_list is None:
+            for i in range(1,N_eps):
+                (result,R) = self.learnEpisode()
+                '''print('\naction hist', self.action_history)
+                print('state hist', self.state_history)'''
+                #self.eps *= .99
+                #self.alpha = 1.0/float(i)
+                self.eps *= .999
+                eps.append(self.eps)
+                Rs.append(R)
+                results.append(result)
+        else:
+            for ss in starting_state_list:
+                (result,R) = self.learnEpisode(starting_state=ss)
+                '''print('\naction hist', self.action_history)
+                print('state hist', self.state_history)'''
+                #self.eps *= .99
+                #self.alpha = 1.0/float(i)
+                eps.append(self.eps)
+                Rs.append(R)
+                results.append(result)
 
-            (result,R) = self.learnEpisode()
-            '''print('\naction hist', self.action_history)
-            print('state hist', self.state_history)'''
-            #self.eps *= .99
-            #self.alpha = 1.0/float(i)
-
-            self.eps *= .999
-            eps.append(self.eps)
-            Rs.append(R)
-            results.append(result)
 
         print('\n\nending Q:\n\n')
         print(self.Q)
@@ -236,6 +256,9 @@ class EggdropAgent:
         axes[1,2].set_xlabel('state index for 2e (0 is 1f)')
         axes[1,2].set_ylabel('argmax for state')
         axes[1,2].legend()
+
+        plt.tight_layout()
+
         plt.show()
 
 

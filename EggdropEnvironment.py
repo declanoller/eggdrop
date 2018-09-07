@@ -77,7 +77,7 @@ class EggdropEnvironment:
             #print('dropped from floor {} out of {}, broke!'.format(a_drop,f))
             if e==1:
                 #I think here we need to make it really bad to end with no eggs...
-                R = -30
+                R = -900
                 #Go to the both broken state, return.
                 s_next = 1
                 return((R,s_next))
@@ -92,7 +92,7 @@ class EggdropEnvironment:
                 R = -1
                 #It just goes to the floor a_drop (because you know if you dropped it
                 #on floor 15/20, you only have to search up to 15 now) with 1e
-                s_next = 1 + a_drop
+                s_next = a_drop + 1
                 #You don't have to update the break floor here.
                 return((R,s_next))
 
