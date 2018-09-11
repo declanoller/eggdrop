@@ -77,7 +77,7 @@ class EggdropEnvironment:
             #print('dropped from floor {} out of {}, broke!'.format(a_drop,f))
             if e==1:
                 #I think here we need to make it really bad to end with no eggs...
-                R = -900
+                R = -9000
                 #Go to the both broken state, return.
                 s_next = 1
                 return((R,s_next))
