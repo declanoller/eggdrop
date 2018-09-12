@@ -68,7 +68,7 @@ class EggdropEnvironment:
             if f>1:
                 #print('dropped from 1 with bf 1, solved!')
                 R = -1
-            #R = 100
+            #R = self.N_floors
             s_next = 0
             return((R,s_next))
 
