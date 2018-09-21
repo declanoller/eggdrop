@@ -1,11 +1,12 @@
 import numpy as np
 from random import randint,random
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 class EggdropAgent:
 
 
-    def __init__(self,egg_env,lambda_lookahead = 0.9,gamma = 0.9,alpha = .9,eps = 0.05,eps_decay=0.999):
+    def __init__(self,egg_env,lambda_lookahead = 0.9,gamma = 0.9,alpha = .9,eps = 0.05,eps_decay=0.999,note=''):
 
         #Not great, but right now s in the actual index in pi, Q, E, etc,
         #whereas a is the FLOOR NUMBER, so index 0 corresponds to a=1, and
@@ -23,7 +24,8 @@ class EggdropAgent:
         self.Q = np.zeros((2+2*self.N_floors,self.N_floors))
 
         self.N_samps = np.zeros((2+2*self.N_floors,self.N_floors))
-
+        self.note = note
+        self.date_str = datetime.now().strftime("%H-%M-%S")
 
 
     def resetE(self):
@@ -84,10 +86,11 @@ class EggdropAgent:
 
     def updateQ(self):
         #This does a backwards view update of Q.
-        #self.Q += self.alpha*np.multiply(self.TDerror(),self.E)
-        #self.Q += self.alpha*self.TDerror()*self.E
-        self.Q += self.TDerror()*np.multiply(np.sqrt(1.0/(self.N_samps+1.0)),self.E)
+        self.Q += self.alpha*self.TDerror()*self.E
+        #self.Q += self.TDerror()*np.multiply(np.sqrt(1.0/(self.N_samps+1.0)),self.E)
         #self.Q += self.TDerror()*np.multiply(1.0/(self.N_samps+1.0),self.E)
+        #self.Q = np.multiply((self.N_samps*self.Q + self.TDerror()*self.E),1.0/(self.N_samps+1.0))
+        #self.Q = np.multiply((self.N_samps*self.Q + self.TDerror()*np.multiply(np.sqrt(self.N_samps),self.E)),1.0/(self.N_samps+1.0))
         self.updateN()
 
     def updateN(self):
@@ -127,7 +130,8 @@ class EggdropAgent:
 
         #Get the starting state (N floors, 2e) and put it in the history array.
         if starting_state is None:
-            self.s = self.getTopFloorStartingState()
+            #self.s = self.getTopFloorStartingState()
+            self.s = self.getRandom2eStartingState()
         else:
             self.s = starting_state
 
@@ -137,16 +141,6 @@ class EggdropAgent:
 
         #Generate the episode
         self.env.generateEpisode(self.getFloorsAndEggsRemainingFromState()[1])
-
-        '''print()
-        print(self.s)'''
-
-        #print('dropping from randomly chosen floor',self.a)
-        #Run forever unless we manually stop it.
-
-
-        '''print('\naction hist', self.action_history)
-        print('state hist', self.state_history)'''
 
         while True:
 
@@ -181,11 +175,6 @@ class EggdropAgent:
             self.updateQ()
             self.decayE()
 
-            '''print('updated Q:')
-            print(self.Q)
-            print('updated E:')
-            print(self.E)'''
-
             #updating s and a
             (self.s,self.a) = (self.s_next,self.a_next)
             self.state_history.append(self.s)
@@ -195,9 +184,6 @@ class EggdropAgent:
             self.time_step += 1
 
 
-        #print('\n\n')
-        '''print(self.Q)
-        exit(0)'''
 
 
 
@@ -240,10 +226,10 @@ class EggdropAgent:
                 results.append(result)
 
 
-        print('\n\nending Q:\n\n')
-        print(self.Q)
+        #print('\n\nending Q:\n\n')
+        #print(self.Q)
 
-        fig, axes = plt.subplots(3,3,figsize=(14,10))
+        fig, axes = plt.subplots(2,3,figsize=(14,10))
 
         ax_eps = None
         ax_res = None
@@ -251,7 +237,7 @@ class EggdropAgent:
         ax_R = axes[0,0]
         #ax_res = axes[1,0]
         ax_Nsum = axes[1,0]
-        ax_eps = axes[2,0]
+        #ax_eps = axes[2,0]
 
         ax_Q_1e = axes[0,1]
         ax_argmax_1e = axes[1,1]
@@ -264,10 +250,13 @@ class EggdropAgent:
 
         if ax_R is not None:
             ax_R.plot(Rs,label='R')
+            ax_R.set_xlabel('episodes')
+            ax_R.set_ylabel('Total reward')
             ax_R.legend()
 
         if ax_res is not None:
             ax_res.plot(results,label='results')
+            ax_res.set_xlabel('state')
             ax_res.legend()
 
         if ax_eps is not None:
@@ -277,20 +266,23 @@ class EggdropAgent:
         if ax_Nsum is not None:
             ax_Nsum.plot(np.sum(self.N_samps,axis=1),label='Nsum')
             ax_Nsum.set_xlabel('state')
+            ax_Nsum.set_ylabel('N_samps per state')
             ax_Nsum.legend()
 
 
         for i in range(2,self.N_floors-5):
             ax_Q_1e.plot(self.Q[i,:],label='1e,f={}'.format(i-1))
 
-        ax_Q_1e.set_xlabel('action index')
+        ax_Q_1e.set_xlabel('action index for 1e states')
+        ax_Q_1e.set_ylabel('Q((1e,*),a)')
         #ax_Q_1e.legend()
 
 
         for i in range(1+self.N_floors+6,1+2*self.N_floors):
             ax_Q_2e.plot(self.Q[i,:],label='2e,f={}'.format(i-self.N_floors))
 
-        ax_Q_2e.set_xlabel('action index')
+        ax_Q_2e.set_xlabel('action index for 2e states')
+        ax_Q_2e.set_ylabel('Q((2e,*),a)')
         #ax_Q_2e.legend()
 
 
@@ -304,57 +296,73 @@ class EggdropAgent:
         ax_argmax_2e.set_xlabel('state index for 2e (0 is 1f)')
         ax_argmax_2e.set_ylabel('argmax for state')
         #ax_argmax_2e.legend()
-
-        plt.tight_layout()
+        fig.suptitle('{}, {}f, alpha={:.2f}, gamma={:.2f}, lambda={:.2f}, {} trials \n MSE={:.2f}'.format(self.note,self.N_floors,self.alpha,self.gamma,self.lambda_lookahead,N_eps,self.theoryError()),fontsize=16)
+        #plt.tight_layout()
 
         if savefig:
-            fname = '{}f_alpha{}_gamma{}_lambda{}_whole.png'.format(self.N_floors,self.alpha,self.gamma,self.lambda_lookahead)
+
+
+            base_name = '{}_{}f_alpha{:.2f}_gamma{:.2f}_lambda{:.2f}_{}trials_{}'.format(self.note,self.N_floors,self.alpha,self.gamma,self.lambda_lookahead,N_eps,self.date_str)
+            ext = '.png'
+
+            fname = base_name + '_whole' + ext
             fig.savefig(fname)
 
-            fname = '{}f_1e_alpha{}_gamma{}_lambda{}.png'.format(self.N_floors,self.alpha,self.gamma,self.lambda_lookahead)
-            extent = ax_argmax_1e.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+            fname = base_name + '_1e' + ext
+            fextent = ax_argmax_1e.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             # Pad the saved area by 10% in the x-direction and 20% in the y-direction
-            fig.savefig(fname, bbox_inches=extent.expanded(1.2, 1.2))
+            #fig.savefig(fname, bbox_inches=extent.expanded(1.2, 1.2))
 
-            fname = '{}f_2e_alpha{}_gamma{}_lambda{}.png'.format(self.N_floors,self.alpha,self.gamma,self.lambda_lookahead)
+            fname = base_name + '_2e' + ext
             extent = ax_argmax_2e.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
             # Pad the saved area by 10% in the x-direction and 20% in the y-direction
-            fig.savefig(fname, bbox_inches=extent.expanded(1.2, 1.2))
+            #fig.savefig(fname, bbox_inches=extent.expanded(1.2, 1.2))
 
         if show_plot:
             plt.show()
+
+        plt.close()
 
 
 
     def inspectState(self,N_eps,state):
 
-
+        #plt.clf()
         if state < 2 + self.N_floors:
             print('state in wrong range:',state)
             exit(0)
 
         f = state - (self.N_floors+1)
-        fig, axes = plt.subplots(1,2,figsize=(18,8))
+        fig, axes = plt.subplots(figsize=(10,10))
 
         #One array for each action of this Q(s,*)
         Q_history = np.expand_dims(self.Q[state,:],axis=1)
-
+        init_argmax = self.greedyAction(state)-1
 
         for i in range(1,N_eps):
+            if i%int(N_eps/10)==0:
+                print('done with {} episodes'.format(i))
             (result,R) = self.learnEpisode(starting_state=state)
             Q_history = np.concatenate((Q_history,np.expand_dims(self.Q[state,:],axis=1)),axis=1)
 
 
-        ax_Qsa = axes[0]
+        #ax_Qsa = axes[0]
+        ax_Qsa = axes
         for i,Q_action_history in enumerate(Q_history):
 
             ax_Qsa.plot(Q_action_history,label='a={}'.format(i))
 
-        ax_Qsa.legend()
-        ax_Qsa.set_title('argmax of Q({},*): a={}'.format(f,self.greedyAction(state)-1))
+        ax_Qsa.legend(loc='center left',bbox_to_anchor= (1,0.5))
+        ax_Qsa.set_title('initial argmax of Q({},*): a={}. \nEnding argmax of Q({},*): a={}'.format(f,init_argmax,f,self.greedyAction(state)-1))
+        ax_Qsa.set_xlabel('episode')
+        ax_Qsa.set_ylabel('Q({},a)'.format(state))
+        date_str = datetime.now().strftime("%H-%M-%S")
+        base_name = '{}_{}f_alpha{}_gamma{}_lambda{}_{}trials_{}'.format(self.note,self.N_floors,self.alpha,self.gamma,self.lambda_lookahead,N_eps,self.date_str)
+        ext = '.png'
+        fname = base_name + '_inspect{}f'.format(f) + ext
 
 
-
+        fig.savefig(fname)
 
         plt.show()
 
@@ -398,6 +406,17 @@ class EggdropAgent:
         plt.show()
 
         exit(0)
+
+
+    def theoryError(self):
+
+        theory_best = np.sqrt(np.arange(1,self.N_floors+1,1))
+        argmaxes = np.argmax(self.Q[2+self.N_floors:,:],axis=1)+1
+
+        return(sum((theory_best - argmaxes)**2)/self.N_floors)
+
+
+
 
 
 

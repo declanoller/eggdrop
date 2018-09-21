@@ -64,7 +64,7 @@ class EggdropEnvironment:
         if self.break_floor==1 and a_drop==1:
             if f==1:
                 #print('only 1f remaining, drop doesnt count, R=0')
-                R = 0
+                R = 1
             if f>1:
                 #print('dropped from 1 with bf 1, solved!')
                 R = -1
@@ -77,7 +77,7 @@ class EggdropEnvironment:
             #print('dropped from floor {} out of {}, broke!'.format(a_drop,f))
             if e==1:
                 #I think here we need to make it really bad to end with no eggs...
-                R = -9000
+                R = -10000
                 #Go to the both broken state, return.
                 s_next = 1
                 return((R,s_next))

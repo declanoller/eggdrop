@@ -1,6 +1,10 @@
 from EggdropEnvironment import EggdropEnvironment
 from EggdropAgent import EggdropAgent
 import numpy as np
+import matplotlib.pyplot as plt
+from statistics import mean, stdev
+
+
 
 
 f = 25
@@ -8,16 +12,85 @@ env = EggdropEnvironment(f)
 
 
 
+agent = EggdropAgent(env,gamma=1.0,lambda_lookahead=0.0,alpha=1.1,eps=0.0,note='noavg_randomdrop2e')
+agent.runManyEpisodes(2000,savefig=True,show_plot=True)
 
-#agent.learnEpisode()
+exit(0)
+agent.inspectState(1000,f+22)
+agent.inspectState(10000,f+22)
 
-'''agent = EggdropAgent(env,gamma=.99,lambda_lookahead=0.0,alpha=.99,eps=0.0)
-agent.runManyEpisodes(20000,savefig=False,show_plot=True)
 
 
-agent.plot_misc()
 
-exit(0)'''
+#######################Trying different avging methods
+
+#alphas = np.linspace(0,1.4,30)[1:]
+avg_errors = []
+SD_errors = []
+Ns = [2000,20000,200000]
+for N in Ns:
+    print(N)
+    runs = 5
+    err = []
+    for run in range(runs):
+        agent = EggdropAgent(env,gamma=1.0,lambda_lookahead=0.0,alpha=0.9,eps=0.0,note='trueavg_randomdrop2e')
+        agent.runManyEpisodes(N,savefig=False,show_plot=False)
+        err.append(agent.theoryError())
+    avg_errors.append(mean(err))
+    SD_errors.append(stdev(err))
+
+
+plt.errorbar(list(range(len(Ns))),avg_errors,yerr=SD_errors,fmt='ro-')
+plt.xlabel('N_episodes')
+plt.ylabel('MSE')
+plt.xticks(list(range(len(Ns))),[str(N) for N in Ns])
+plt.title('true avg decreasing rate , 25f')
+plt.savefig('true_avg_MSE.png')
+print('avg errors:',avg_errors)
+print('SD errors:',SD_errors)
+
+plt.show()
+
+exit(0)
+
+
+
+
+
+####################Varying alpha
+
+alphas = np.linspace(0,1.4,30)[1:]
+avg_errors = []
+SD_errors = []
+N = 200000
+for a in alphas:
+    print(a)
+    runs = 5
+    err = []
+    for run in range(runs):
+        agent = EggdropAgent(env,gamma=1.0,lambda_lookahead=0.0,alpha=a,eps=0.0,note='noavg_randomdrop2e')
+        agent.runManyEpisodes(N,savefig=False,show_plot=False)
+        err.append(agent.theoryError())
+    avg_errors.append(mean(err))
+    SD_errors.append(stdev(err))
+
+
+plt.errorbar(alphas,avg_errors,yerr=SD_errors,fmt='ro-')
+plt.xlabel('alpha')
+plt.ylabel('MSE')
+plt.title(str(N)+' episodes, 25f')
+plt.savefig(str(N)+'eps_' + 'MSE_vs_alpha.png')
+plt.show()
+exit(0)
+
+#######################plain ol many episodes runs
+
+agent = EggdropAgent(env,gamma=1.0,lambda_lookahead=0.0,alpha=.05,eps=0.0,note='trueavg_randomdrop2e')
+agent.runManyEpisodes(2000000,savefig=True,show_plot=True)
+
+#agent.inspectState(100000,f+22)
+
+exit(0)
 
 eps_each = 100
 states_ub = 2*f+1
